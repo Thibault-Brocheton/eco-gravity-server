@@ -10,7 +10,7 @@ public static class GravityChatCommand
     [ChatCommand("Shows commands for Gravity manipulation.")]
     public static void Gravity(User user) { }
 
-    [ChatSubCommand("Gravity", "Check for integrity and display color on blocks", ChatAuthorizationLevel.Admin)]
+    /*[ChatSubCommand("Gravity", "Check for integrity and display color on blocks", ChatAuthorizationLevel.Admin)]
     public static void Calculate(User user, int x, int y, int z)
     {
         if (GravityPlugin.Obj.Config.GravityEnabled)
@@ -69,6 +69,6 @@ public static class GravityChatCommand
         }
 
         user.MsgLocStr("World integrities displayed");
-    }
+    }*/
 }
 

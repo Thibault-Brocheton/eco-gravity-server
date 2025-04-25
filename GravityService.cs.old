@@ -11,18 +11,17 @@ namespace Gravity;
 
 public static class GravityService
 {
-    public static Dictionary<WrappedWorldPosition3i, ByteColor> ChangedColorPositions = new Dictionary<WrappedWorldPosition3i, ByteColor>();
-    public static Dictionary<WrappedWorldPosition3i, Integrity> WorldIntegrities = new Dictionary<WrappedWorldPosition3i, Integrity>();
+    //public static Dictionary<WrappedWorldPosition3i, ByteColor> ChangedColorPositions = new Dictionary<WrappedWorldPosition3i, ByteColor>();
+    //public static Dictionary<WrappedWorldPosition3i, Integrity> WorldIntegrities = new Dictionary<WrappedWorldPosition3i, Integrity>();
 
-    private static readonly ByteColor IntegrityOk = new ByteColor(0, 0, 255, 255);
+    /*private static readonly ByteColor IntegrityOk = new ByteColor(0, 0, 255, 255);
     private static readonly ByteColor IntegrityFine = new ByteColor(0, 255, 0, 255);
     private static readonly ByteColor IntegrityWarning = new ByteColor(255, 255, 0, 255);
     private static readonly ByteColor IntegrityAlert = new ByteColor(128, 0, 128, 255);
-    private static readonly ByteColor IntegrityFatal = new ByteColor(255, 0, 0, 255);
+    private static readonly ByteColor IntegrityFatal = new ByteColor(255, 0, 0, 255);*/
 
-
-    private const decimal BreakValue = 10000;
-    private const decimal UndefinedValue = -1;
+    //private const decimal BreakValue = 10000;
+    //private const decimal UndefinedValue = -1;
 
     private const decimal DefaultMaxOverhang = 3;
     private const decimal DefaultMaxResistance = 6;
@@ -37,7 +36,7 @@ public static class GravityService
         { typeof(HewnLogItem), (4, 8) },
     };
 
-    public static void ClearColorIntegrities()
+    /*public static void ClearColorIntegrities()
     {
         foreach (var changedColorPosition in ChangedColorPositions)
         {
@@ -45,7 +44,7 @@ public static class GravityService
         }
 
         ChangedColorPositions.Clear();
-    }
+    }*/
 
     private static bool IsSolidWallBlock(Block block)
     {

@@ -181,9 +181,11 @@ namespace Eco.Gameplay.Gravity
             this.isActivated = false;
         }
 
-        public async Task ShutdownAsync()
+        public Task ShutdownAsync()
         {
             this.DeActivateGravity();
+
+            return Task.CompletedTask;
         }
 
         public object GetEditObject() => this.config.Config;

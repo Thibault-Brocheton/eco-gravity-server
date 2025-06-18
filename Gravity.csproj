@@ -14,4 +14,13 @@
       <ProjectReference Include="..\Eco.Server\Eco.Server.csproj" />
     </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="DrillItem.cs" />
+    <None Include="DrillItem.cs" />
+    <Compile Remove="DestroyedItems.cs" />
+    <None Include="DestroyedItems.cs" />
+    <Compile Remove="PhysicConfigurationTooltipLibrary.cs" />
+    <None Include="PhysicConfigurationTooltipLibrary.cs" />
+  </ItemGroup>
+
 </Project>

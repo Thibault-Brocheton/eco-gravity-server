@@ -1,184 +1,196 @@
-﻿using Eco.Core.Plugins;
-using Eco.Core.Plugins.Interfaces;
-using Eco.Core.Serialization;
-using Eco.Core.Utils;
-using Eco.Server;
-using Eco.Shared.Math;
-using Eco.Shared.Utils;
-using Eco.World;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
-using Newtonsoft.Json.Linq;
-using GuidConverter = Eco.Core.Serialization.GuidConverter;
-using Integrity = (decimal overhang, decimal resistance);
+﻿// Copyright (c) Strange Loop Games. All rights reserved.
+// See LICENSE file in the project root for full license information.
 
-namespace Gravity;
-
-public class GravityConfig : Singleton<GravityConfig>
+namespace Eco.Gameplay.Gravity
 {
-    public bool GravityEnabled { get; set; } = true;
-}
+    using Eco.Core.Plugins.Interfaces;
+    using Eco.Core.Plugins;
+    using Eco.Core.Utils;
+    using Eco.Shared.Logging;
+    using Eco.Shared.Utils;
+    using Eco.World;
+    using System.Collections.Generic;
+    using System.Threading.Tasks;
 
-[Priority(PriorityAttribute.VeryLow)]
-public class GravityPlugin : Singleton<GravityPlugin>, IModKitPlugin, IInitializablePlugin, IConfigurablePlugin, IShutdownablePlugin
-{
-    public static ThreadSafeAction OnSettingsChanged = new();
-    public IPluginConfig PluginConfig => this.config;
-    private readonly PluginConfig<GravityConfig> config;
-    public GravityConfig Config => this.config.Config;
-    public ThreadSafeAction<object, string> ParamChanged { get; set; } = new();
-
-    private const string SavePath = "Configs/Mods/Gravity/Internal";
-    private const string ChangedColorPositionsPath = "Configs/Mods/Gravity/Internal/ChangedColorPositions.json";
-    private const string WorldIntegritiesPath = "Configs/Mods/Gravity/Internal/WorldIntegrities.json";
-
-    public GravityPlugin()
+    public class GravityMod: IModInit
     {
-        this.config = new PluginConfig<GravityConfig>("Gravity");
-        this.SaveConfig();
-    }
-
-    public string GetStatus()
-    {
-        return "OK";
-    }
-
-    public string GetCategory()
-    {
-        return "Mods";
-    }
-
-    public void Initialize(TimedTask timer)
-    {
-        var settings = new JsonSerializerSettings
+        public static ModRegistration Register() => new()
         {
-            ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
-            NullValueHandling = NullValueHandling.Ignore,
-            TypeNameHandling = TypeNameHandling.Auto,
-            TypeNameAssemblyFormatHandling = TypeNameAssemblyFormatHandling.Simple,
-            Converters =
-            {
-                new StringEnumConverter(),
-                new JavaScriptDateTimeConverter(),
-                new GuidConverter(),
-                new LocStringConverter(),
-                new Vector3IKeyDictionaryConverter<ByteColor>(),
-                new Vector3IKeyDictionaryConverter<Integrity>(),
-                new IntegrityConverter()
-            },
-        };
-
-        if (File.Exists(ChangedColorPositionsPath))
-        {
-            GravityService.ChangedColorPositions = JsonConvert.DeserializeObject<Dictionary<WrappedWorldPosition3i, ByteColor>>(File.ReadAllText(ChangedColorPositionsPath), settings)!;
-        }
-
-        if (File.Exists(WorldIntegritiesPath))
-        {
-            GravityService.ChangedColorPositions = JsonConvert.DeserializeObject<Dictionary<WrappedWorldPosition3i, ByteColor>>(File.ReadAllText(WorldIntegritiesPath), settings)!;
-        }
-
-        PluginManager.Obj.InitComplete += () =>
-        {
-            Console.WriteLine(@"[GravityMod] Activate World OnBlockChanged");
-            World.OnBlockChanged.Add(GravityService.HandleBlockChange);
+            ModName = "Gravity",
+            ModDescription = "Gravity activates structural integrity on all blocks.",
+            ModDisplayName = "Gravity"
         };
     }
 
-    public async Task ShutdownAsync()
+    public class GravityConfig : Singleton<GravityConfig>
     {
-        World.OnBlockChanged.Remove(GravityService.HandleBlockChange);
+        public bool GravityEnabled { get; set; } = true;
+        public bool Debug { get; set; } = false;
 
-        if (!Directory.Exists(SavePath))
+        public double DefaultMaxResistance { get; set; } = 6;
+        public double DefaultMaxOverhang { get; set; } = 3;
+        public double DefaultWeight { get; set; } = 1;
+
+        public double MaxDepth { get; set; } = 5;
+        public double SupportDistanceForMaxEfficiency { get; set; } = 10;
+
+        public Dictionary<string, IntegrityConfig> PhysicConfiguration { get; set; } = new Dictionary<string, IntegrityConfig>()
         {
-            Directory.CreateDirectory(SavePath);
+            // Algorithmically, all Minable blocks have Infinite Resistance
+            // Rocks
+            { "SandstoneItem", new IntegrityConfig(int.MaxValue, 10, 0) },
+            { "LimestoneItem", new IntegrityConfig(int.MaxValue, 10, 0) },
+            { "GraniteItem", new IntegrityConfig(int.MaxValue, 10, 0) },
+            { "BasaltItem", new IntegrityConfig(int.MaxValue, 10, 0) },
+            { "GneissItem", new IntegrityConfig(int.MaxValue, 10, 0) },
+            { "ShaleItem", new IntegrityConfig(int.MaxValue, 10, 0) },
+            // Special Rocks
+            { "CoalItem", new IntegrityConfig(int.MaxValue, 10, 0) },
+            { "SulfurItem", new IntegrityConfig(int.MaxValue, 10, 0) },
+            // Ores
+            { "IronOreItem", new IntegrityConfig(int.MaxValue, 10, 0) },
+            { "CopperOreItem", new IntegrityConfig(int.MaxValue, 10, 0) },
+            { "GoldOreItem", new IntegrityConfig(int.MaxValue, 10, 0) },
+            // Crushed Rocks
+            { "CrushedSandstoneItem", new IntegrityConfig(int.MaxValue, 10, 0) },
+            { "CrushedLimestoneItem", new IntegrityConfig(int.MaxValue, 10, 0) },
+            { "CrushedGraniteItem", new IntegrityConfig(int.MaxValue, 10, 0) },
+            { "CrushedBasaltItem", new IntegrityConfig(int.MaxValue, 10, 0) },
+            { "CrushedGneissItem", new IntegrityConfig(int.MaxValue, 10, 0) },
+            { "CrushedShaleItem", new IntegrityConfig(int.MaxValue, 10, 0) },
+            { "CrushedCoalItem", new IntegrityConfig(int.MaxValue, 10, 0) },
+            { "CrushedSulfurItem", new IntegrityConfig(int.MaxValue, 10, 0) },
+            { "CrushedIronOreItem", new IntegrityConfig(int.MaxValue, 10, 0) },
+            { "CrushedCopperOreItem", new IntegrityConfig(int.MaxValue, 10, 0) },
+            { "CrushedGoldOreItem", new IntegrityConfig(int.MaxValue, 10, 0) },
+            { "CrushedMixedRockItem", new IntegrityConfig(int.MaxValue, 10, 0) },
+            { "CrushedSlagItem", new IntegrityConfig(int.MaxValue, 10, 0) },
+            // Dirts
+            { "DirtItem", new IntegrityConfig(15, 1, 0) },
+            { "SandItem", new IntegrityConfig(8, 1, 0) },
+            { "ClayItem", new IntegrityConfig(3, 1, 0) },
+            // Tailings
+            { "TailingsItem", new IntegrityConfig(int.MaxValue, 1, 0) },
+            { "WetTailingsItem", new IntegrityConfig(int.MaxValue, 1, 0) },
+            { "GarbageItem", new IntegrityConfig(int.MaxValue, 1, 0) },
+            // Construction Blocks
+            { "AdobeItem", new IntegrityConfig(6, 3, 1) },
+            { "HewnLogItem", new IntegrityConfig(8, 6, 1) },
+            { "SoftwoodHewnLogItem", new IntegrityConfig(7, 8, 1) },
+            { "HardwoodHewnLogItem", new IntegrityConfig(10, 5, 1) },
+            { "MortaredStoneItem", new IntegrityConfig(30, 5, 3) },
+            // Construction Forms
+            { "FloorType", new IntegrityConfig(0, 1.2, 0) },
+            { "SimpleFloorType", new IntegrityConfig(0, 1.2, 0) },
+            { "FlatRoofType", new IntegrityConfig(-1.2, 1.2, 0) },
+            { "RoofType", new IntegrityConfig(-1.2, 1.2, 0) },
+            { "RoofCornerType", new IntegrityConfig(-1.2, 1.2, 0) },
+            { "RoofCubeType", new IntegrityConfig(-1.2, 1.2, 0) },
+            { "RoofEdgeCornerType", new IntegrityConfig(-1.2, 1.2, 0) },
+            { "RoofEdgeSideType", new IntegrityConfig(-1.2, 1.2, 0) },
+            { "RoofEdgeTurnType", new IntegrityConfig(-1.2, 1.2, 0) },
+            { "RoofEndType", new IntegrityConfig(-1.2, 1.2, 0) },
+            { "RoofFillType", new IntegrityConfig(-1.2, 1.2, 0) },
+            { "RoofMidType", new IntegrityConfig(-1.2, 1.2, 0) },
+            { "RoofPeakType", new IntegrityConfig(-1.2, 1.2, 0) },
+            { "RoofPeakCornerType", new IntegrityConfig(-1.2, 1.2, 0) },
+            { "RoofPeakSetType", new IntegrityConfig(-1.2, 1.2, 0) },
+            { "RoofPeakTType", new IntegrityConfig(-1.2, 1.2, 0) },
+            { "RoofPeakXType", new IntegrityConfig(-1.2, 1.2, 0) },
+            { "RoofSideType", new IntegrityConfig(-1.2, 1.2, 0) },
+            { "RoofSoloType", new IntegrityConfig(-1.2, 1.2, 0) },
+            { "RoofTType", new IntegrityConfig(-1.2, 1.2, 0) },
+            { "RoofTurnType", new IntegrityConfig(-1.2, 1.2, 0) },
+            { "RoofUnderslopeCornerType", new IntegrityConfig(-1.2, 1.2, 0) },
+            { "RoofUnderslopeSideType", new IntegrityConfig(-1.2, 1.2, 0) },
+            { "RoofUnderslopeTurnType", new IntegrityConfig(-1.2, 1.2, 0) },
+            { "RoofXType", new IntegrityConfig(-1.2, 1.2, 0) },
+            { "Column", new IntegrityConfig(1.2, -1.2, 0) },
+            { "Column_01", new IntegrityConfig(1.2, -1.2, 0) },
+            { "Column_02", new IntegrityConfig(1.2, -1.2, 0) },
+            { "Column_03", new IntegrityConfig(1.2, -1.2, 0) },
+            { "Column_05", new IntegrityConfig(1.2, -1.2, 0) },
+        };
+    }
+
+    [Priority(PriorityAttribute.VeryLow)]
+    public class GravityPlugin : Singleton<GravityPlugin>, IModKitPlugin, IInitializablePlugin, IConfigurablePlugin, IShutdownablePlugin
+    {
+        public static ThreadSafeAction OnSettingsChanged = new();
+        public IPluginConfig PluginConfig => this.config;
+        private readonly PluginConfig<GravityConfig> config;
+        public GravityConfig Config => this.config.Config;
+        public ThreadSafeAction<object, string> ParamChanged { get; set; } = new();
+
+        private bool isActivated;
+
+        public GravityPlugin()
+        {
+            this.config = new PluginConfig<GravityConfig>("Gravity");
+            this.SaveConfig();
         }
 
-        await File.WriteAllTextAsync(ChangedColorPositionsPath, SerializationUtils.SerializeJson(GravityService.ChangedColorPositions));
-        await File.WriteAllTextAsync(WorldIntegritiesPath, SerializationUtils.SerializeJson(GravityService.WorldIntegrities));
-    }
-
-    public object GetEditObject() => this.config.Config;
-
-    public void OnEditObjectChanged(object o, string param)
-    {
-        this.SaveConfig();
-    }
-}
-
-public class Vector3IKeyDictionaryConverter<TValue> : JsonConverter<Dictionary<WrappedWorldPosition3i, TValue>>
-{
-    public override Dictionary<WrappedWorldPosition3i, TValue> ReadJson(JsonReader reader, Type objectType, Dictionary<WrappedWorldPosition3i, TValue>? existingValue, bool hasExistingValue, JsonSerializer serializer)
-    {
-        var tempDict = serializer.Deserialize<Dictionary<string, TValue>>(reader);
-        var result = new Dictionary<WrappedWorldPosition3i, TValue>();
-
-        if (tempDict == null) return result;
-
-        foreach (var kvp in tempDict)
+        public string GetStatus()
         {
-            // Convert the string key "(x, y, z)" to WrappedWorldPosition3i
-            var str = kvp.Key.Trim('(', ')');
-            var parts = str.Split(',');
+            return "OK";
+        }
 
-            if (parts.Length == 3
-                && int.TryParse(parts[0].Trim(), out var x)
-                && int.TryParse(parts[1].Trim(), out var y)
-                && int.TryParse(parts[2].Trim(), out var z))
+        public string GetCategory()
+        {
+            return "Mods";
+        }
+
+        public void Initialize(TimedTask timer)
+        {
+            Log.WriteLineLoc($"[GravityMod] Activate World OnBlockChanged");
+
+            if (Obj.Config.GravityEnabled)
             {
-                WrappedWorldPosition3i.TryCreate(new Vector3i(x, y, z), out var vec);
+                this.ActivateGravity();
+            }
+        }
 
-                // Deserialize TValue using the serializer
-                var value = serializer.Deserialize<TValue>(new JTokenReader(JToken.FromObject(kvp.Value!)));
-                result[vec] = value!;
+        public bool ToggleGravity()
+        {
+            if (this.isActivated)
+            {
+                this.DeActivateGravity();
             }
             else
             {
-                throw new JsonSerializationException($"Format de clé invalide pour un WrappedWorldPosition3i : '{kvp.Key}'");
+                this.ActivateGravity();
             }
+
+            return this.isActivated;
         }
 
-        return result;
-    }
-
-    public override void WriteJson(JsonWriter writer, Dictionary<WrappedWorldPosition3i, TValue>? value, JsonSerializer serializer)
-    {
-        if (value == null) return;
-
-        var tempDict = value.ToDictionary(
-            kvp => $"({kvp.Key.X}, {kvp.Key.Y}, {kvp.Key.Z})",
-            kvp =>
-            {
-                // Serialize TValue using the serializer
-                var token = JToken.FromObject(kvp.Value!, serializer);
-                return token;
-            });
-
-        serializer.Serialize(writer, tempDict);
-    }
-}
-
-public class IntegrityConverter : JsonConverter<Integrity>
-{
-    public override Integrity ReadJson(JsonReader reader, Type objectType, Integrity existingValue, bool hasExistingValue, JsonSerializer serializer)
-    {
-        var temp = serializer.Deserialize<Dictionary<string, decimal>>(reader);
-        if (temp == null || !temp.ContainsKey("o") || !temp.ContainsKey("r"))
+        private void ActivateGravity()
         {
-            throw new JsonSerializationException("Invalid JSON format for Integrity");
+            if (this.isActivated) return;
+            GravityService.ResetWorldIntegrities();
+            World.OnBlockChanged.Add(GravityService.HandleBlockChange);
+
+            this.isActivated = true;
         }
 
-        return (temp["o"], temp["r"]);
-    }
-
-    public override void WriteJson(JsonWriter writer, Integrity value, JsonSerializer serializer)
-    {
-        var temp = new Dictionary<string, decimal>
+        private void DeActivateGravity()
         {
-            { "o", value.overhang },
-            { "r", value.resistance }
-        };
+            if (!this.isActivated) return;
+            World.OnBlockChanged.Remove(GravityService.HandleBlockChange);
 
-        serializer.Serialize(writer, temp);
+            this.isActivated = false;
+        }
+
+        public async Task ShutdownAsync()
+        {
+            this.DeActivateGravity();
+        }
+
+        public object GetEditObject() => this.config.Config;
+
+        public void OnEditObjectChanged(object o, string param)
+        {
+            this.SaveConfig();
+        }
     }
 }

@@ -1,74 +1,100 @@
-﻿using Eco.Gameplay.Players;
-using Eco.Gameplay.Systems.Messaging.Chat.Commands;
-using Eco.Shared.Math;
+﻿// Copyright (c) Strange Loop Games. All rights reserved.
+// See LICENSE file in the project root for full license information.
 
-namespace Gravity;
-
-[ChatCommandHandler]
-public static class GravityChatCommand
+namespace Eco.Gameplay.Gravity
 {
-    [ChatCommand("Shows commands for Gravity manipulation.")]
-    public static void Gravity(User user) { }
+    using Eco.Gameplay.Players;
+    using Eco.Gameplay.Systems.Messaging.Chat.Commands;
 
-    [ChatSubCommand("Gravity", "Check for integrity and display color on blocks", ChatAuthorizationLevel.Admin)]
-    public static void Calculate(User user, int x, int y, int z)
+    [ChatCommandHandler]
+    public static class GravityChatCommand
     {
-        if (GravityPlugin.Obj.Config.GravityEnabled)
+        [ChatCommand("Shows commands for Gravity manipulation.")]
+        public static void Gravity(User user) { }
+
+        [ChatSubCommand("Gravity", "Reset WorldIntegrities", "greset", ChatAuthorizationLevel.Admin)]
+        public static void Reset(User user)
         {
-            var construction = GravityService.GetConstruction([new Vector3i(x, y, z)]);
-            GravityService.MarkBlocks(construction);
+            if (GravityPlugin.Obj.Config.GravityEnabled)
+            {
+                GravityService.ResetWorldIntegrities();
+            }
+
+            user.MsgLocStr("Reset successful");
         }
 
-        user.MsgLocStr("Calculate successful");
-    }
-
-    [ChatSubCommand("Gravity", "Check for integrity and display color on blocks", ChatAuthorizationLevel.Admin)]
-    public static void CalculateAround(User user)
-    {
-        if (GravityPlugin.Obj.Config.GravityEnabled)
+        [ChatSubCommand("Gravity", "Toggle", ChatAuthorizationLevel.Admin)]
+        public static void Toggle(User user, bool save = false)
         {
-            var construction = GravityService.GetConstruction(user.Position.XYZi().XYZNeighbors
-                .Select(n => WrappedWorldPosition3i.TryCreate(n, out var val) ? (WrappedWorldPosition3i?)val : null)
-                .Where(n => n is not null)
-                .OfType<WrappedWorldPosition3i>()
-                .ToList());
-            GravityService.MarkBlocks(construction);
+            var isActivated = GravityPlugin.Obj.ToggleGravity();
+
+            if (save)
+            {
+                GravityPlugin.Obj.Config.GravityEnabled = isActivated;
+            }
+
+            user.MsgLocStr($"Gravity is now {(isActivated ? "enabled" : "disabled")}.");
         }
 
-        user.MsgLocStr("Calculate successful");
-    }
-
-    [ChatSubCommand("Gravity", "Clear color integrity", ChatAuthorizationLevel.Admin)]
-    public static void ClearColor(User user)
-    {
-        if (GravityPlugin.Obj.Config.GravityEnabled)
+        /*[ChatSubCommand("Gravity", "Check for integrity and display color on blocks", ChatAuthorizationLevel.Admin)]
+        public static void Calculate(User user, int x, int y, int z)
         {
-            GravityService.ClearColorIntegrities();
+            if (GravityPlugin.Obj.Config.GravityEnabled)
+            {
+                var construction = GravityService.GetConstruction([new Vector3i(x, y, z)]);
+                GravityService.MarkBlocks(construction);
+            }
+
+            user.MsgLocStr("Calculate successful");
         }
 
-        user.MsgLocStr("Colors cleared");
-    }
-
-    [ChatSubCommand("Gravity", "Clear world integrities", ChatAuthorizationLevel.Admin)]
-    public static void ClearWorldIntegrities(User user)
-    {
-        if (GravityPlugin.Obj.Config.GravityEnabled)
+        [ChatSubCommand("Gravity", "Check for integrity and display color on blocks", ChatAuthorizationLevel.Admin)]
+        public static void CalculateAround(User user)
         {
-            GravityService.ClearWorldIntegrities();
+            if (GravityPlugin.Obj.Config.GravityEnabled)
+            {
+                var construction = GravityService.GetConstruction(user.Position.XYZi().XYZNeighbors
+                    .Select(n => WrappedWorldPosition3i.TryCreate(n, out var val) ? (WrappedWorldPosition3i?)val : null)
+                    .Where(n => n is not null)
+                    .OfType<WrappedWorldPosition3i>()
+                    .ToList());
+                GravityService.MarkBlocks(construction);
+            }
+
+            user.MsgLocStr("Calculate successful");
         }
 
-        user.MsgLocStr("World integrities cleared");
-    }
-
-    [ChatSubCommand("Gravity", "Display world integrities", ChatAuthorizationLevel.Admin)]
-    public static void DisplayWorldIntegrities(User user)
-    {
-        if (GravityPlugin.Obj.Config.GravityEnabled)
+        [ChatSubCommand("Gravity", "Clear color integrity", ChatAuthorizationLevel.Admin)]
+        public static void ClearColor(User user)
         {
-            GravityService.DisplayWorldIntegrities();
+            if (GravityPlugin.Obj.Config.GravityEnabled)
+            {
+                GravityService.ClearColorIntegrities();
+            }
+
+            user.MsgLocStr("Colors cleared");
         }
 
-        user.MsgLocStr("World integrities displayed");
+        [ChatSubCommand("Gravity", "Clear world integrities", ChatAuthorizationLevel.Admin)]
+        public static void ClearWorldIntegrities(User user)
+        {
+            if (GravityPlugin.Obj.Config.GravityEnabled)
+            {
+                GravityService.ClearWorldIntegrities();
+            }
+
+            user.MsgLocStr("World integrities cleared");
+        }
+
+        [ChatSubCommand("Gravity", "Display world integrities", ChatAuthorizationLevel.Admin)]
+        public static void DisplayWorldIntegrities(User user)
+        {
+            if (GravityPlugin.Obj.Config.GravityEnabled)
+            {
+                GravityService.DisplayWorldIntegrities();
+            }
+
+            user.MsgLocStr("World integrities displayed");
+        }*/
     }
 }
-
